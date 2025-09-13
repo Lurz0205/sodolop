@@ -161,17 +161,16 @@
             "Văn Đạt", "Thùy Dương", "Đăng Toàn", "Như Quỳnh", "Thanh Thủy", "Chí Thiện", "Văn Dũng"
         ];
         
-        let students = [...baseStudents]; // Use a working copy
-        
         const totalSeats = 4 * 5 * 2;
+        let students = [...baseStudents]; // Use a working copy
         while (students.length < totalSeats) {
             students.push('');
         }
-
+        
         let draggedSeat = null;
         let isAnimating = false;
 
-        function createSeatingChart() {
+        function createSeatingChart(studentNames) {
             columns.forEach(column => column.innerHTML = '');
             let studentIndex = 0;
             for (let col = 0; col < 4; col++) {
@@ -180,10 +179,10 @@
                     desk.className = 'w-56 h-20 bg-white rounded-lg p-2 flex border border-gray-300 shadow-lg space-x-2';
                     desk.draggable = false;
                     
-                    const seat1 = createSeat(students[studentIndex++]);
+                    const seat1 = createSeat(studentNames[studentIndex++]);
                     const divider = document.createElement('div');
                     divider.className = 'w-px bg-gray-300 my-2';
-                    const seat2 = createSeat(students[studentIndex++]);
+                    const seat2 = createSeat(studentNames[studentIndex++]);
                     
                     desk.appendChild(seat1);
                     desk.appendChild(divider);
@@ -245,11 +244,11 @@
 
             seat.addEventListener('dragenter', (e) => {
                 e.preventDefault();
-                e.target.classList.add('drag-over');
+                e.currentTarget.classList.add('drag-over');
             });
 
             seat.addEventListener('dragleave', (e) => {
-                e.target.classList.remove('drag-over');
+                e.currentTarget.classList.remove('drag-over');
             });
 
             seat.addEventListener('dragover', (e) => {
@@ -258,17 +257,16 @@
 
             seat.addEventListener('drop', (e) => {
                 e.preventDefault();
-                e.target.classList.remove('drag-over');
+                const dropTargetSeat = e.currentTarget;
+                dropTargetSeat.classList.remove('drag-over');
 
-                if (draggedSeat && draggedSeat !== e.target && !isAnimating) {
-                    const tempName = e.target.dataset.name;
-                    const tempInnerHTML = e.target.innerHTML;
+                if (draggedSeat && draggedSeat !== dropTargetSeat && !isAnimating) {
+                    const sourceName = draggedSeat.dataset.name;
+                    const targetName = dropTargetSeat.dataset.name;
 
-                    e.target.dataset.name = draggedSeat.dataset.name;
-                    e.target.innerHTML = draggedSeat.innerHTML;
-
-                    draggedSeat.dataset.name = tempName;
-                    draggedSeat.innerHTML = tempInnerHTML;
+                    // Update content for both seats using the dedicated function
+                    updateSeatContent(draggedSeat, targetName);
+                    updateSeatContent(dropTargetSeat, sourceName);
                 }
             });
 
@@ -283,65 +281,29 @@
         }
         
         function updateSeatContent(seat, name) {
-            const nameParts = name.split(' ');
+            const nameParts = name ? name.split(' ') : [''];
             if (nameParts.length > 1) {
                 seat.innerHTML = `<span class="block">${nameParts[0]}</span><span class="block">${nameParts.slice(1).join(' ')}</span>`;
             } else {
-                seat.textContent = name;
+                seat.textContent = name || '';
             }
-            seat.dataset.name = name;
+            seat.dataset.name = name || '';
         }
         
-        function balanceStudentDistribution(studentsList, totalSeats) {
-            const studentsCount = studentsList.length;
-            const emptySeatsCount = totalSeats - studentsCount;
-            const emptySeats = new Array(emptySeatsCount).fill('');
-            
-            const totalColumns = 4;
-            const seatsPerColumn = totalSeats / totalColumns;
-            
-            const emptySeatsPerColumn = Math.floor(emptySeatsCount / totalColumns);
-            const remainingEmptySeats = emptySeatsCount % totalColumns;
-            
-            const balancedList = [];
-            let studentsIndex = 0;
-            
-            for (let i = 0; i < totalColumns; i++) {
-                const currentColumnEmptySeats = emptySeatsPerColumn + (i < remainingEmptySeats ? 1 : 0);
-                const currentColumnStudents = seatsPerColumn - currentColumnEmptySeats;
-                
-                const columnStudents = studentsList.slice(studentsIndex, studentsIndex + currentColumnStudents);
-                const columnEmptySeats = new Array(currentColumnEmptySeats).fill('');
-                
-                const mergedColumn = [...columnStudents, ...columnEmptySeats];
-                shuffleArray(mergedColumn);
-                balancedList.push(...mergedColumn);
-                
-                studentsIndex += currentColumnStudents;
-            }
-            
-            if (balancedList.length !== totalSeats) {
-                const combinedList = [...studentsList, ...emptySeats];
-                shuffleArray(combinedList);
-                return combinedList;
-            }
-            
-            return balancedList;
-        }
-
-        async function applyRandomSeatingFast() {
+        async function applyRandomSeatingFast(studentsList) {
             if (isAnimating) return;
             isAnimating = true;
 
             const allSeats = document.querySelectorAll('.seat');
-            const studentsToShuffle = [...baseStudents]; // Use a fresh copy of baseStudents
-            const balancedList = balanceStudentDistribution(studentsToShuffle, allSeats.length);
+            
+            const shuffledList = [...studentsList];
+            shuffleArray(shuffledList);
             
             allSeats.forEach(seat => updateSeatContent(seat, ''));
 
             const animationDelay = 50;
             const shuffleDuration = 500;
-            const randomNamesPool = studentsToShuffle.filter(name => name);
+            const randomNamesPool = studentsList.filter(name => name);
 
             allSeats.forEach((seat, index) => {
                 setTimeout(() => {
@@ -358,7 +320,7 @@
 
                     setTimeout(() => {
                         clearInterval(shuffleInterval);
-                        const finalName = balancedList[index] || '';
+                        const finalName = shuffledList[index] || '';
                         
                         if (finalName === '') {
                              seat.innerHTML = `<span class="text-3xl text-red-500 font-bold exclamation-pulse">!</span>`;
@@ -378,13 +340,15 @@
             });
         }
         
-        async function applyRandomSeatingSlow() {
+        async function applyRandomSeatingSlow(studentsList) {
             if (isAnimating) return;
             isAnimating = true;
             
             const allSeats = document.querySelectorAll('.seat');
-            const studentsToShuffle = [...baseStudents]; // Use a fresh copy of baseStudents
-            const balancedList = balanceStudentDistribution(studentsToShuffle, allSeats.length);
+            
+            const shuffledList = [...studentsList];
+            shuffleArray(shuffledList);
+
             allSeats.forEach(seat => updateSeatContent(seat, ''));
 
             for (let i = 0; i < allSeats.length; i++) {
@@ -393,14 +357,14 @@
                     
                     let shuffleCount = 0;
                     const shuffleInterval = setInterval(() => {
-                        const randomName = studentsToShuffle.filter(name => name)[Math.floor(Math.random() * studentsToShuffle.filter(name => name).length)];
+                        const randomName = studentsList.filter(name => name)[Math.floor(Math.random() * studentsList.filter(name => name).length)];
                         updateSeatContent(seat, randomName);
                         shuffleCount++;
                     }, 50);
 
                     setTimeout(() => {
                         clearInterval(shuffleInterval);
-                        const finalName = balancedList[i] || '';
+                        const finalName = shuffledList[i] || '';
                         
                         if (finalName === '') {
                              seat.innerHTML = `<span class="text-3xl text-red-500 font-bold exclamation-pulse">!</span>`;
@@ -441,12 +405,12 @@
         });
 
         fastRandomBtn.addEventListener('click', () => {
-            applyRandomSeatingFast();
+            applyRandomSeatingFast([...baseStudents, ...Array(totalSeats - baseStudents.length).fill('')]);
             randomOptionsModal.classList.add('hidden');
         });
         
         slowRandomBtn.addEventListener('click', () => {
-            applyRandomSeatingSlow();
+            applyRandomSeatingSlow([...baseStudents, ...Array(totalSeats - baseStudents.length).fill('')]);
             randomOptionsModal.classList.add('hidden');
         });
 
@@ -465,7 +429,7 @@
             while (students.length < totalSeats) {
                 students.push('');
             }
-            createSeatingChart();
+            createSeatingChart(students);
         });
 
         modalCancelBtn.addEventListener('click', () => {
@@ -482,7 +446,10 @@
                 const reader = new FileReader();
                 reader.onload = (e) => {
                     const content = e.target.result;
-                    const studentListFromFile = content.split('\n').map(name => name.trim()).filter(name => name);
+                    let studentListFromFile = content.split('\n').map(name => name.trim()).filter(name => name);
+                    while (studentListFromFile.length < totalSeats) {
+                        studentListFromFile.push('');
+                    }
                     applyRandomSeatingFast(studentListFromFile);
                     fileModal.classList.add('hidden');
                     fileInput.value = '';
@@ -492,7 +459,7 @@
         });
 
         // Initialize the chart
-        createSeatingChart();
+        createSeatingChart(students);
     </script>
 </body>
 </html>
