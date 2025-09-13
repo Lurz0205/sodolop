@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sơ Đồ Lớp Học</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f2f5;
+        }
+        .seat {
+            cursor: pointer;
+            transition: transform 0.2s;
+        }
+        .seat:hover {
+            transform: scale(1.05);
+        }
+        .drag-over {
+            border: 2px dashed #3b82f6;
+            background-color: #dbeafe;
+        }
+        .drag-source {
+            opacity: 0.5;
+        }
+        .modal {
+            background-color: rgba(0, 0, 0, 0.5);
+        }
+        .card {
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1), 0 1px 3px rgba(0, 0, 0, 0.08);
+        }
+        .shuffling {
+            animation: none !important;
+        }
+        .final-pulse {
+            animation: finalPulse 0.5s ease-in-out forwards;
+        }
+        .exclamation-pulse {
+            animation: exclamationPulse 0.5s ease-in-out forwards;
+        }
+        @keyframes finalPulse {
+            0% { transform: scale(0.5); opacity: 0; }
+            50% { transform: scale(1.1); opacity: 1; }
+            100% { transform: scale(1); }
+        }
+        @keyframes exclamationPulse {
+            0% { transform: scale(0); opacity: 0; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(1); opacity: 0; }
+        }
+    </style>
+</head>
+<body class="bg-gray-100 flex flex-col items-center justify-center p-4 min-h-screen">
+
+    <!-- Modal for editing student names -->
+    <div id="modal-container" class="fixed inset-0 z-50 flex items-center justify-center hidden modal">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm card">
+            <h3 id="modal-title" class="text-xl font-bold mb-4 text-center"></h3>
+            <input id="modal-input" type="text" placeholder="Nhập tên học sinh" class="w-full p-2 border border-gray-300 rounded-md mb-4 focus:outline-none focus:ring-2 focus:ring-blue-500">
+            <div class="flex justify-end space-x-2">
+                <button id="modal-cancel-btn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Hủy</button>
+                <button id="modal-save-btn" class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600">Lưu</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for file upload -->
+    <div id="file-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden modal">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm card">
+            <h3 class="text-xl font-bold mb-4 text-center">Xếp ngẫu nhiên từ File</h3>
+            <p class="text-sm text-gray-600 mb-4 text-center">Tải lên một file .txt với mỗi tên học sinh trên một dòng.</p>
+            <input type="file" id="file-input" accept=".txt" class="w-full mb-4">
+            <div class="flex justify-end space-x-2">
+                <button id="file-modal-cancel-btn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Hủy</button>
+                <button id="file-modal-upload-btn" class="px-4 py-2 bg-green-500 text-white rounded-lg hover:bg-green-600">Tải lên</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for random options -->
+    <div id="random-options-modal" class="fixed inset-0 z-50 flex items-center justify-center hidden modal">
+        <div class="bg-white p-6 rounded-lg shadow-xl w-full max-w-sm card">
+            <h3 class="text-xl font-bold mb-4 text-center">Chọn chế độ xếp</h3>
+            <div class="flex flex-col space-y-2">
+                <button id="fast-random" class="w-full text-center px-4 py-2 text-gray-800 bg-gray-200 rounded-lg hover:bg-gray-300">Xáo Nhanh</button>
+                <button id="slow-random" class="w-full text-center px-4 py-2 text-gray-800 bg-gray-200 rounded-lg hover:bg-gray-300">Xáo Chậm</button>
+            </div>
+            <div class="flex justify-end mt-4">
+                <button id="random-options-cancel-btn" class="px-4 py-2 bg-gray-300 text-gray-800 rounded-lg hover:bg-gray-400">Hủy</button>
+            </div>
+        </div>
+    </div>
+
+    <div class="w-full max-w-screen-xl mx-auto p-4 flex flex-col items-center">
+        <h1 class="text-3xl font-bold text-center text-gray-800">Sơ Đồ Lớp Học</h1>
+        <h2 class="text-lg text-center text-gray-600 mb-8">Lớp 12A1 - Năm học 2025 - 2026</h2>
+        <div class="grid grid-cols-4 gap-12 justify-center">
+            <!-- Columns for desks -->
+            <div id="column-1" class="flex flex-col items-center space-y-4"></div>
+            <div id="column-2" class="flex flex-col items-center space-y-4"></div>
+            <div id="column-3" class="flex flex-col items-center space-y-4"></div>
+            <div id="column-4" class="flex flex-col items-center space-y-4"></div>
+        </div>
+
+        <!-- Teacher's Desk & Exit -->
+        <div class="mt-8 flex justify-between w-full max-w-screen-xl mx-auto p-4">
+            <div class="flex flex-col items-center">
+                <div class="w-24 h-8 bg-gray-700 rounded-lg flex items-center justify-center text-white text-sm font-semibold shadow-md">
+                    Lối Ra Vào
+                </div>
+            </div>
+            <div class="flex flex-col items-center">
+                <div class="w-64 h-16 bg-blue-800 rounded-lg flex items-center justify-center text-white text-lg font-semibold shadow-md">
+                    Bàn Giáo Viên
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="mt-8 flex justify-center space-x-4">
+            <button id="random-btn" class="px-6 py-3 bg-purple-500 text-white font-semibold rounded-lg shadow-md hover:bg-purple-600 transition-colors">Xếp Ngẫu Nhiên</button>
+            <button id="file-random-btn" class="px-6 py-3 bg-teal-500 text-white font-semibold rounded-lg shadow-md hover:bg-teal-600 transition-colors">Xếp Ngẫu Nhiên Từ File</button>
+            <button id="export-btn" class="px-6 py-3 bg-cyan-500 text-white font-semibold rounded-lg shadow-md hover:bg-cyan-600 transition-colors">Xuất Danh Sách</button>
+            <button id="reset-btn" class="px-6 py-3 bg-red-500 text-white font-semibold rounded-lg shadow-md hover:bg-red-600 transition-colors">Đặt Lại</button>
+        </div>
+    </div>
+
+    <script>
+        const columns = [document.getElementById('column-1'), document.getElementById('column-2'), document.getElementById('column-3'), document.getElementById('column-4')];
+        const randomBtn = document.getElementById('random-btn');
+        const fastRandomBtn = document.getElementById('fast-random');
+        const slowRandomBtn = document.getElementById('slow-random');
+        const fileRandomBtn = document.getElementById('file-random-btn');
+        const exportBtn = document.getElementById('export-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        const modalContainer = document.getElementById('modal-container');
+        const modalTitle = document.getElementById('modal-title');
+        const modalInput = document.getElementById('modal-input');
+        const modalCancelBtn = document.getElementById('modal-cancel-btn');
+        const modalSaveBtn = document.getElementById('modal-save-btn');
+
+        const fileModal = document.getElementById('file-modal');
+        const fileInput = document.getElementById('file-input');
+        const fileModalCancelBtn = document.getElementById('file-modal-cancel-btn');
+        const fileModalUploadBtn = document.getElementById('file-modal-upload-btn');
+        
+        const randomOptionsModal = document.getElementById('random-options-modal');
+        const randomOptionsCancelBtn = document.getElementById('random-options-cancel-btn');
+        
+        // Use a base list of students that is never modified
+        const baseStudents = [
+            "My Ny", "Văn Ân", "Gia Hưng", "Nhật Trường", "Hương Giang", "Thủy Tiên", "Cẩm Nhung",
+            "Duy Minh", "Băng Thanh", "Minh Vi", "Diễm My", "Nguyên Khoa", "Hạ Nhi", "Như Loan",
+            "Văn Kiệt", "Anh Thư", "Kim Phụng", "Bảo Châu", "Xuân Tiên", "Nguyên Vũ", "Hồng Nhung",
+            "Thị Lộc", "Mỹ Quỳnh", "Minh Thu", "Thanh Mơ", "Cát Tường", "Cẩm Tú", "Thái Bảo",
+            "Văn Đạt", "Thùy Dương", "Đăng Toàn", "Như Quỳnh", "Thanh Thủy", "Chí Thiện", "Văn Dũng"
+        ];
+        
+        let students = [...baseStudents]; // Use a working copy
+        
+        const totalSeats = 4 * 5 * 2;
+        while (students.length < totalSeats) {
+            students.push('');
+        }
+
+        let draggedSeat = null;
+        let isAnimating = false;
+
+        function createSeatingChart() {
+            columns.forEach(column => column.innerHTML = '');
+            let studentIndex = 0;
+            for (let col = 0; col < 4; col++) {
+                for (let row = 0; row < 5; row++) {
+                    const desk = document.createElement('div');
+                    desk.className = 'w-56 h-20 bg-white rounded-lg p-2 flex border border-gray-300 shadow-lg space-x-2';
+                    desk.draggable = false;
+                    
+                    const seat1 = createSeat(students[studentIndex++]);
+                    const divider = document.createElement('div');
+                    divider.className = 'w-px bg-gray-300 my-2';
+                    const seat2 = createSeat(students[studentIndex++]);
+                    
+                    desk.appendChild(seat1);
+                    desk.appendChild(divider);
+                    desk.appendChild(seat2);
+                    columns[col].appendChild(desk);
+                }
+            }
+        }
+
+        function createSeat(studentName) {
+            const seat = document.createElement('div');
+            seat.className = 'seat flex-1 flex flex-col items-center justify-center p-1 font-medium text-gray-700 hover:bg-gray-100 transition-colors relative';
+            
+            const nameParts = studentName.split(' ');
+            if (nameParts.length > 1) {
+                seat.innerHTML = `<span class="block">${nameParts[0]}</span><span class="block">${nameParts.slice(1).join(' ')}</span>`;
+            } else {
+                seat.textContent = studentName || '';
+            }
+            
+            seat.dataset.name = studentName || '';
+            seat.draggable = true;
+
+            seat.addEventListener('click', (e) => {
+                if (isAnimating) return;
+                e.stopPropagation();
+                modalContainer.classList.remove('hidden');
+                modalTitle.textContent = `Chỉnh sửa: ${seat.dataset.name || 'Trống'}`;
+                modalInput.value = seat.dataset.name || '';
+                
+                modalSaveBtn.onclick = () => {
+                    const newName = modalInput.value.trim();
+                    if (newName) {
+                        const newNameParts = newName.split(' ');
+                        if (newNameParts.length > 1) {
+                            seat.innerHTML = `<span class="block">${newNameParts[0]}</span><span class="block">${newNameParts.slice(1).join(' ')}</span>`;
+                        } else {
+                            seat.textContent = newName;
+                        }
+                        seat.dataset.name = newName;
+                    } else {
+                        seat.textContent = '';
+                        seat.dataset.name = '';
+                    }
+                    modalContainer.classList.add('hidden');
+                };
+            });
+
+            seat.addEventListener('dragstart', (e) => {
+                if (isAnimating) return;
+                draggedSeat = e.target;
+                e.target.classList.add('drag-source');
+                e.dataTransfer.setData('text/plain', null);
+            });
+
+            seat.addEventListener('dragend', (e) => {
+                e.target.classList.remove('drag-source');
+            });
+
+            seat.addEventListener('dragenter', (e) => {
+                e.preventDefault();
+                e.target.classList.add('drag-over');
+            });
+
+            seat.addEventListener('dragleave', (e) => {
+                e.target.classList.remove('drag-over');
+            });
+
+            seat.addEventListener('dragover', (e) => {
+                e.preventDefault();
+            });
+
+            seat.addEventListener('drop', (e) => {
+                e.preventDefault();
+                e.target.classList.remove('drag-over');
+
+                if (draggedSeat && draggedSeat !== e.target && !isAnimating) {
+                    const tempName = e.target.dataset.name;
+                    const tempInnerHTML = e.target.innerHTML;
+
+                    e.target.dataset.name = draggedSeat.dataset.name;
+                    e.target.innerHTML = draggedSeat.innerHTML;
+
+                    draggedSeat.dataset.name = tempName;
+                    draggedSeat.innerHTML = tempInnerHTML;
+                }
+            });
+
+            return seat;
+        }
+        
+        function shuffleArray(array) {
+            for (let i = array.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [array[i], array[j]] = [array[j], array[i]];
+            }
+        }
+        
+        function updateSeatContent(seat, name) {
+            const nameParts = name.split(' ');
+            if (nameParts.length > 1) {
+                seat.innerHTML = `<span class="block">${nameParts[0]}</span><span class="block">${nameParts.slice(1).join(' ')}</span>`;
+            } else {
+                seat.textContent = name;
+            }
+            seat.dataset.name = name;
+        }
+        
+        function balanceStudentDistribution(studentsList, totalSeats) {
+            const studentsCount = studentsList.length;
+            const emptySeatsCount = totalSeats - studentsCount;
+            const emptySeats = new Array(emptySeatsCount).fill('');
+            
+            const totalColumns = 4;
+            const seatsPerColumn = totalSeats / totalColumns;
+            
+            const emptySeatsPerColumn = Math.floor(emptySeatsCount / totalColumns);
+            const remainingEmptySeats = emptySeatsCount % totalColumns;
+            
+            const balancedList = [];
+            let studentsIndex = 0;
+            
+            for (let i = 0; i < totalColumns; i++) {
+                const currentColumnEmptySeats = emptySeatsPerColumn + (i < remainingEmptySeats ? 1 : 0);
+                const currentColumnStudents = seatsPerColumn - currentColumnEmptySeats;
+                
+                const columnStudents = studentsList.slice(studentsIndex, studentsIndex + currentColumnStudents);
+                const columnEmptySeats = new Array(currentColumnEmptySeats).fill('');
+                
+                const mergedColumn = [...columnStudents, ...columnEmptySeats];
+                shuffleArray(mergedColumn);
+                balancedList.push(...mergedColumn);
+                
+                studentsIndex += currentColumnStudents;
+            }
+            
+            if (balancedList.length !== totalSeats) {
+                const combinedList = [...studentsList, ...emptySeats];
+                shuffleArray(combinedList);
+                return combinedList;
+            }
+            
+            return balancedList;
+        }
+
+        async function applyRandomSeatingFast() {
+            if (isAnimating) return;
+            isAnimating = true;
+
+            const allSeats = document.querySelectorAll('.seat');
+            const studentsToShuffle = [...baseStudents]; // Use a fresh copy of baseStudents
+            const balancedList = balanceStudentDistribution(studentsToShuffle, allSeats.length);
+            
+            allSeats.forEach(seat => updateSeatContent(seat, ''));
+
+            const animationDelay = 50;
+            const shuffleDuration = 500;
+            const randomNamesPool = studentsToShuffle.filter(name => name);
+
+            allSeats.forEach((seat, index) => {
+                setTimeout(() => {
+                    let shuffleCount = 0;
+                    const shuffleInterval = setInterval(() => {
+                        if (shuffleCount >= 5) {
+                            clearInterval(shuffleInterval);
+                            return;
+                        }
+                        const randomName = randomNamesPool[Math.floor(Math.random() * randomNamesPool.length)];
+                        updateSeatContent(seat, randomName);
+                        shuffleCount++;
+                    }, 50);
+
+                    setTimeout(() => {
+                        clearInterval(shuffleInterval);
+                        const finalName = balancedList[index] || '';
+                        
+                        if (finalName === '') {
+                             seat.innerHTML = `<span class="text-3xl text-red-500 font-bold exclamation-pulse">!</span>`;
+                        } else {
+                            updateSeatContent(seat, finalName);
+                            seat.classList.add('final-pulse');
+                            setTimeout(() => {
+                                seat.classList.remove('final-pulse');
+                            }, 500);
+                        }
+                        
+                        if (index === allSeats.length - 1) {
+                            isAnimating = false;
+                        }
+                    }, shuffleDuration);
+                }, index * animationDelay);
+            });
+        }
+        
+        async function applyRandomSeatingSlow() {
+            if (isAnimating) return;
+            isAnimating = true;
+            
+            const allSeats = document.querySelectorAll('.seat');
+            const studentsToShuffle = [...baseStudents]; // Use a fresh copy of baseStudents
+            const balancedList = balanceStudentDistribution(studentsToShuffle, allSeats.length);
+            allSeats.forEach(seat => updateSeatContent(seat, ''));
+
+            for (let i = 0; i < allSeats.length; i++) {
+                await new Promise(resolve => {
+                    const seat = allSeats[i];
+                    
+                    let shuffleCount = 0;
+                    const shuffleInterval = setInterval(() => {
+                        const randomName = studentsToShuffle.filter(name => name)[Math.floor(Math.random() * studentsToShuffle.filter(name => name).length)];
+                        updateSeatContent(seat, randomName);
+                        shuffleCount++;
+                    }, 50);
+
+                    setTimeout(() => {
+                        clearInterval(shuffleInterval);
+                        const finalName = balancedList[i] || '';
+                        
+                        if (finalName === '') {
+                             seat.innerHTML = `<span class="text-3xl text-red-500 font-bold exclamation-pulse">!</span>`;
+                        } else {
+                            updateSeatContent(seat, finalName);
+                            seat.classList.add('final-pulse');
+                            setTimeout(() => {
+                                seat.classList.remove('final-pulse');
+                            }, 500);
+                        }
+
+                        if (i === allSeats.length - 1) {
+                            isAnimating = false;
+                        }
+                        resolve();
+                    }, 1000);
+                });
+            }
+        }
+
+        function exportSeatingChart() {
+            const allSeats = document.querySelectorAll('.seat');
+            const studentNames = Array.from(allSeats).map(seat => seat.dataset.name).filter(name => name);
+            const textContent = studentNames.join('\n');
+            const blob = new Blob([textContent], { type: 'text/plain;charset=utf-8' });
+            const link = document.createElement('a');
+            link.href = URL.createObjectURL(blob);
+            link.download = 'danh_sach_lop.txt';
+            link.style.display = 'none';
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        // Event listeners
+        randomBtn.addEventListener('click', (e) => {
+            randomOptionsModal.classList.remove('hidden');
+        });
+
+        fastRandomBtn.addEventListener('click', () => {
+            applyRandomSeatingFast();
+            randomOptionsModal.classList.add('hidden');
+        });
+        
+        slowRandomBtn.addEventListener('click', () => {
+            applyRandomSeatingSlow();
+            randomOptionsModal.classList.add('hidden');
+        });
+
+        randomOptionsCancelBtn.addEventListener('click', () => {
+            randomOptionsModal.classList.add('hidden');
+        });
+
+        fileRandomBtn.addEventListener('click', () => {
+            fileModal.classList.remove('hidden');
+        });
+
+        exportBtn.addEventListener('click', exportSeatingChart);
+
+        resetBtn.addEventListener('click', () => {
+            students = [...baseStudents];
+            while (students.length < totalSeats) {
+                students.push('');
+            }
+            createSeatingChart();
+        });
+
+        modalCancelBtn.addEventListener('click', () => {
+            modalContainer.classList.add('hidden');
+        });
+
+        fileModalCancelBtn.addEventListener('click', () => {
+            fileModal.classList.add('hidden');
+        });
+
+        fileModalUploadBtn.addEventListener('click', () => {
+            const file = fileInput.files[0];
+            if (file) {
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const content = e.target.result;
+                    const studentListFromFile = content.split('\n').map(name => name.trim()).filter(name => name);
+                    applyRandomSeatingFast(studentListFromFile);
+                    fileModal.classList.add('hidden');
+                    fileInput.value = '';
+                };
+                reader.readAsText(file);
+            }
+        });
+
+        // Initialize the chart
+        createSeatingChart();
+    </script>
+</body>
+</html>
